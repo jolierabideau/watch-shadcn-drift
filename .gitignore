@@ -1,0 +1,4 @@
+.cursor/
+drift-logs/
+drift-summary.json
+discord-payload.json

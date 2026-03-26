@@ -1,0 +1,98 @@
+name: Shadcn drift check
+
+on:
+  schedule:
+    - cron: '0 9 * * 1' # Mondays 09:00 UTC
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref (branch, tag, or SHA) for paranext-core'
+        required: false
+        default: main
+        type: string
+      dry_run:
+        description: 'If true, do not post to Discord (still run checks and artifacts)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shadcn-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      PARANEXT_REF: ${{ github.event.inputs.ref || 'main' }}
+      PARANEXT_GITHUB_REPOSITORY: paranext/paranext-core
+
+    steps:
+      - name: Checkout watch-shadcn-updates
+        uses: actions/checkout@v4
+
+      - name: Checkout paranext-core
+        uses: actions/checkout@v4
+        with:
+          repository: paranext/paranext-core
+          path: paranext-core
+          ref: ${{ github.event.inputs.ref || 'main' }}
+          token: ${{ secrets.PARANEXT_READ_TOKEN }}
+          fetch-depth: 1
+
+      - name: Job summary — paranext ref
+        run: |
+          echo "## paranext-core snapshot" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Ref:** \`${{ github.event.inputs.ref || 'main' }}\`" >> "$GITHUB_STEP_SUMMARY"
+          SHA=$(git -C paranext-core rev-parse HEAD)
+          echo "- **SHA:** \`$SHA\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Read Node version (volta)
+        id: volta
+        working-directory: paranext-core
+        run: |
+          node -e "const p=require('./package.json'); const v=p.volta&&p.volta.node; if(!v) throw new Error('missing volta.node'); console.log('node_version='+v)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.volta.outputs.node_version }}
+          cache: npm
+          cache-dependency-path: paranext-core/package-lock.json
+
+      - name: npm ci (paranext-core root)
+        working-directory: paranext-core
+        run: npm ci
+
+      - name: Run drift script
+        id: drift
+        run: node scripts/check-shadcn-drift.mjs --paranext-root paranext-core
+
+      - name: Post to Discord
+        if: steps.drift.outputs.updates_needed == 'true'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_SHADCN_WEBHOOK_URL }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "Skipping Discord (dry_run=true)"
+            exit 0
+          fi
+          if [ -z "${DISCORD_WEBHOOK_URL}" ]; then
+            echo "::error::DISCORD_SHADCN_WEBHOOK_URL secret is not set"
+            exit 1
+          fi
+          curl -sS -X POST -H "Content-Type: application/json" -d @discord-payload.json "$DISCORD_WEBHOOK_URL"
+
+      - name: Upload drift artifacts
+        if: always() && steps.drift.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadcn-drift-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            drift-logs/
+            drift-summary.json
+            discord-payload.json
