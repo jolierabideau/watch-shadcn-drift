@@ -1,4 +1,4 @@
-# watch-shadcn-updates
+# watch-shadcn-drift
 
 Scheduled GitHub Actions workflow that checks **[paranext/paranext-core](https://github.com/paranext/paranext-core)** for:
 
@@ -21,14 +21,14 @@ Workflow file: [`.github/workflows/shadcn-drift.yml`](.github/workflows/shadcn-d
 
 | Secret | Purpose |
 |--------|---------|
-| `PARANEXT_READ_TOKEN` | PAT with **Contents: Read** on `paranext/paranext-core`. Needed because the workflow checks out a **second** repository; the default `GITHUB_TOKEN` only applies to **watch-shadcn-updates**, not to cross-repo clones. Use a fine-grained PAT on that repo only (or an appropriate classic PAT). If your org uses SAML SSO, **authorize** the token for the org. |
+| `PARANEXT_READ_TOKEN` | PAT with **Contents: Read** on `paranext/paranext-core`. Needed because the workflow checks out a **second** repository; the default `GITHUB_TOKEN` only applies to **watch-shadcn-drift**, not to cross-repo clones. Use a fine-grained PAT on that repo only (or an appropriate classic PAT). If your org uses SAML SSO, **authorize** the token for the org. |
 | `DISCORD_SHADCN_WEBHOOK_URL` | Full URL of a [Discord incoming webhook](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks). Required when you want notifications; if missing and the workflow tries to post, that step fails with an error. |
 
 **Rotating credentials:** replace the PAT or webhook in GitHub/Discord settings, update secrets, then delete the old credentials. Document **who owns** renewal in your team runbook.
 
 ### What runs on each job
 
-1. Checkout **watch-shadcn-updates** (this repo — workflow, scripts, manifest).
+1. Checkout **watch-shadcn-drift** (this repo — workflow, scripts, manifest).
 2. Checkout **paranext/paranext-core** into `paranext-core/` (shallow, ref below).
 3. Read **Node** from `paranext-core/package.json` **`volta.node`** and run **`actions/setup-node`** with **npm cache** on `paranext-core/package-lock.json`.
 4. **`npm ci`** in **`paranext-core/`** (monorepo root, same idea as upstream [`.github/workflows/test.yml`](https://github.com/paranext/paranext-core/blob/main/.github/workflows/test.yml)).
@@ -58,7 +58,7 @@ Workflow file: [`.github/workflows/shadcn-drift.yml`](.github/workflows/shadcn-d
 
 ## Running locally (without GitHub Actions)
 
-Use the same entrypoint the workflow uses: **`scripts/check-shadcn-drift.mjs`**. Always run commands from the **root of this repo** (`watch-shadcn-updates`) so `config/shadcn-drift-manifest.json` resolves correctly.
+Use the same entrypoint the workflow uses: **`scripts/check-shadcn-drift.mjs`**. Always run commands from the **root of this repo** (`watch-shadcn-drift`) so `config/shadcn-drift-manifest.json` resolves correctly.
 
 **Prerequisites**
 
@@ -70,7 +70,7 @@ Use the same entrypoint the workflow uses: **`scripts/check-shadcn-drift.mjs`**.
 Use whatever branch/commit you already have checked out.
 
 ```bash
-cd /path/to/watch-shadcn-updates
+cd /path/to/watch-shadcn-drift
 
 npm ci --prefix /path/to/paranext-core   # repeat when lockfile or deps change
 
@@ -91,7 +91,7 @@ node scripts/check-shadcn-drift.mjs --paranext-root ../paranext-core
 Clones **shallow** into a temp directory, runs `npm ci` and the drift script, then deletes the temp dir.
 
 ```bash
-cd /path/to/watch-shadcn-updates
+cd /path/to/watch-shadcn-drift
 
 ./scripts/run-with-remote-paranext.sh              # default: branch main
 ./scripts/run-with-remote-paranext.sh release-prep # another branch or tag
