@@ -8,6 +8,9 @@
 #   PARANEXT_REF=abc1234 ./scripts/run-with-remote-paranext.sh  # short SHA (see note)
 #
 # Private repo: set PARANEXT_READ_TOKEN (same as GitHub Actions secret).
+# The token is embedded in the HTTPS clone URL (GitHub's supported pattern). It can
+# surface in process listings (e.g. ps) or some tools’ error output; CI usually masks
+# secrets, but locally treat terminal output and screen shares accordingly.
 # Override repo: PARANEXT_GITHUB_REPOSITORY=owner/paranext-fork ./scripts/run-with-remote-paranext.sh
 
 set -euo pipefail
@@ -26,6 +29,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Token-in-URL: see header note (possible ps / stderr exposure; CI masking vs local).
 clone_url() {
   if [[ -n "${PARANEXT_READ_TOKEN:-}" ]]; then
     echo "https://x-access-token:${PARANEXT_READ_TOKEN}@github.com/${REPO}.git"

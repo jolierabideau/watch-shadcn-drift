@@ -32,6 +32,11 @@ function loadManifest() {
   return JSON.parse(raw);
 }
 
+/**
+ * Numeric segment compare after stripping a leading `v`. Not full semver: each segment is
+ * `parseInt` (non-numeric parts like alpha/beta/rc become 0), so prerelease ordering can be wrong
+ * (e.g. 4.1.0-beta.1 vs 4.1.0). Acceptable while registry/npm tags stay plain releases.
+ */
 function versionNewer(latest, pinned) {
   const pa = latest.replace(/^v/, '').split(/[.-]/).map((s) => parseInt(s, 10) || 0);
   const pb = pinned.replace(/^v/, '').split(/[.-]/).map((s) => parseInt(s, 10) || 0);
@@ -56,14 +61,13 @@ function listShadcnUiComponents(shadcnUiDir, excludeSet) {
     .filter((name) => !excludeSet.has(name));
 }
 
+/** True when stdout/stderr looks like patch output (not generic CLI noise). */
 function outputLooksLikeDiff(text) {
   if (!text || text.trim().length === 0) return false;
   return (
     text.includes('diff --git') ||
-    text.includes('\n--- ') ||
-    text.includes('\n+++ ') ||
-    (text.includes('@@') && text.includes('-')) ||
-    /^\s*[-+@]/.test(text.split('\n').find((l) => l.trim()) ?? '')
+    /(?:^|\n)--- /.test(text) ||
+    /(?:^|\n)\+\+\+ /.test(text)
   );
 }
 
