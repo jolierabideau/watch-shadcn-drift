@@ -2,11 +2,29 @@
 
 Scheduled GitHub Actions workflow that checks **[paranext/paranext-core](https://github.com/paranext/paranext-core)** for:
 
-1. **Shadcn registry drift** — `npx shadcn add <component> --diff` for each vendored primitive under `lib/platform-bible-react/src/components/shadcn-ui/`, plus optional `@shadcn-editor` items from the manifest.
+1. **Upstream registry drift** — Fetches the **registry JSON** for each tracked component (same URLs as [`lib/platform-bible-react/components.json`](https://github.com/paranext/paranext-core/blob/main/lib/platform-bible-react/components.json): default `https://ui.shadcn.com/r/styles/{style}/{name}.json`, plus namespaced registries such as `@shadcn-editor`). Compares a **stable serialization** of that JSON to committed **snapshots** under [`snapshots/registry/`](snapshots/registry/) and metadata in [`config/registry-snapshots.json`](config/registry-snapshots.json). When something changes upstream, the workflow writes **`drift-logs/upstream-<key>.diff`** (unified diff vs the last snapshot) and optional **`upstream-<key>-imports.txt`** (import-line delta). This answers “did the registry move?” without comparing to heavily customized local files.
 2. **Allowlisted npm drift** — `npm outdated -w platform-bible-react` intersected with [`config/shadcn-drift-manifest.json`](config/shadcn-drift-manifest.json).
 3. **Shadcn CLI** — compares the pinned CLI version in the manifest to `npm view shadcn version`.
 
+**Optional (legacy):** `shadcn add <name> --diff` against vendored files — enable with `legacyLocalDiff: true` in the manifest or **`--include-local-diff`** on the check script. **Does not** set `updates_needed` when `trackUpstreamSnapshots` is true (informational only); it is the primary drift signal only when **`trackUpstreamSnapshots`** is **false**.
+
 If **nothing** needs attention, **no Discord message** is sent. If any bucket is non-empty, **one** message is posted to a Discord incoming webhook with a short summary and links to the Actions run and the checked-out commit.
+
+---
+
+## Registry snapshots and baselines
+
+- **Canonical blob:** Parsed registry JSON is re-serialized with **sorted object keys** ([`scripts/lib/registry-snapshot.mjs`](scripts/lib/registry-snapshot.mjs)) so hashes are stable.
+- **When upstream changes:** Refresh committed snapshots and the index from a **paranext-core** checkout with network access:
+
+  ```bash
+  cd /path/to/watch-shadcn-drift
+  node scripts/update-registry-snapshots.mjs --paranext-root /path/to/paranext-core
+  ```
+
+  Commit `snapshots/registry/*.json` and `config/registry-snapshots.json` in **this** repo (e.g. a PR in `watch-shadcn-drift` after you merge or plan upstream changes).
+
+- **Missing baseline:** If a tracked component has no snapshot file, the check lists it under **Missing registry baselines** and sets `updates_needed` until you run the update script.
 
 ---
 
@@ -28,7 +46,7 @@ Workflow file: [`.github/workflows/shadcn-drift.yml`](.github/workflows/shadcn-d
 
 ### What runs on each job
 
-1. Checkout **watch-shadcn-drift** (this repo — workflow, scripts, manifest).
+1. Checkout **watch-shadcn-drift** (this repo — workflow, scripts, manifest, snapshots).
 2. Checkout **paranext/paranext-core** into `paranext-core/` (shallow, ref below).
 3. Read **Node** from `paranext-core/package.json` **`volta.node`** and run **`actions/setup-node`** with **npm cache** on `paranext-core/package-lock.json`.
 4. **`npm ci`** in **`paranext-core/`** (monorepo root, same idea as upstream [`.github/workflows/test.yml`](https://github.com/paranext/paranext-core/blob/main/.github/workflows/test.yml)).
@@ -39,7 +57,7 @@ Workflow file: [`.github/workflows/shadcn-drift.yml`](.github/workflows/shadcn-d
 **Triggers**
 
 | Trigger | When it runs |
-|---------|----------------|
+|---------|--------------|
 | **Schedule** | Mondays **09:00 UTC** (`cron: 0 9 * * 1`). Checks **`main`** on paranext-core (same as default `ref` below). |
 | **workflow_dispatch** | On demand from the Actions tab. |
 
@@ -63,7 +81,7 @@ Use the same entrypoint the workflow uses: **`scripts/check-shadcn-drift.mjs`**.
 **Prerequisites**
 
 - **Node:** match `volta.node` in your **paranext-core** `package.json` when you can.
-- **Network:** `npx shadcn@…`, `npm outdated`, and `npm view shadcn` need registry access.
+- **Network:** registry fetches, `npm outdated`, and `npm view shadcn` need registry access.
 
 ### Option A — Use your existing `paranext-core` clone
 
@@ -77,7 +95,7 @@ npm ci --prefix /path/to/paranext-core   # repeat when lockfile or deps change
 node scripts/check-shadcn-drift.mjs --paranext-root /path/to/paranext-core
 ```
 
-Add **`--plain`** to disable ANSI colors (e.g. when piping to a file).
+Add **`--plain`** to disable ANSI colors (e.g. when piping to a file). Add **`--include-local-diff`** to run legacy **`shadcn add --diff`** logs (see manifest `legacyLocalDiff`).
 
 If the two repos are siblings:
 
@@ -100,15 +118,15 @@ cd /path/to/watch-shadcn-drift
 - **Private** `paranext/paranext-core`: export **`PARANEXT_READ_TOKEN`** (same role as the Actions secret).
 - **Fork:** `PARANEXT_GITHUB_REPOSITORY=owner/repo ./scripts/run-with-remote-paranext.sh`
 
-This still **clones on disk briefly**; it does not stream-only from the API. `npx shadcn --diff` and workspace **`npm ci`** need a real tree and `node_modules`.
+This still **clones on disk briefly**; it does not stream-only from the API. **`npm ci`** needs a real tree and `node_modules`.
 
 ### Outputs (local and CI)
 
 | Output | Description |
 |--------|-------------|
-| **Stdout** | First line: `updates_needed=true` or `false`. When true, a **formatted report** (terminal): numbered sections for (1) **registry drift** — components where `shadcn add <name> --diff` saw a diff or CLI error — (2) **allowlisted npm outdated**, (3) **newer shadcn CLI** vs manifest pin. |
-| **`drift-summary.json`** | JSON breakdown (components, packages, CLI). In `.gitignore`. |
-| **`drift-logs/*.log`** | Per-component shadcn `--diff` logs. In `.gitignore`. |
+| **Stdout** | First line: `updates_needed=true` or `false`. When true, a **formatted report** (terminal): upstream snapshot changes, missing baselines, fetch errors, allowlisted **npm outdated**, **newer shadcn CLI** vs manifest pin, and optional legacy **local `--diff`** listing. |
+| **`drift-summary.json`** | JSON breakdown (`upstreamChanged`, `missingBaseline`, `upstreamFetchErrors`, packages, CLI, optional local diff). In `.gitignore`. |
+| **`drift-logs/`** | `upstream-*.diff`, `upstream-*-imports.txt`, and optional `default-*.log` / `editor-*.log` for legacy `--diff`. In `.gitignore`. |
 | **`discord-payload.json`** | JSON for Discord `content` (markdown with the same sections + short **Note** lines). In `.gitignore`. |
 
 ### Local vs CI
@@ -132,8 +150,9 @@ Prefer a test webhook/channel when experimenting.
 
 ## Configuration
 
-- **Manifest:** [`config/shadcn-drift-manifest.json`](config/shadcn-drift-manifest.json) — pinned `shadcn` CLI version, `excludeComponents`, `editorRegistryComponents` (`@shadcn-editor/...` names), and `outdatedPackageAllowlist`.
-- **Scripts:** [`scripts/check-shadcn-drift.mjs`](scripts/check-shadcn-drift.mjs), [`scripts/run-with-remote-paranext.sh`](scripts/run-with-remote-paranext.sh).
+- **Manifest:** [`config/shadcn-drift-manifest.json`](config/shadcn-drift-manifest.json) — `shadcnCliVersion`, **`trackUpstreamSnapshots`** (default `true`), **`legacyLocalDiff`** (default `false`), `excludeComponents`, `editorRegistryComponents` (`@shadcn-editor/...` names), and `outdatedPackageAllowlist`.
+- **Snapshot index:** [`config/registry-snapshots.json`](config/registry-snapshots.json) — per-key `sha256`, `registryUrl`, `capturedAt`, etc. (generated by `update-registry-snapshots.mjs`).
+- **Scripts:** [`scripts/check-shadcn-drift.mjs`](scripts/check-shadcn-drift.mjs), [`scripts/update-registry-snapshots.mjs`](scripts/update-registry-snapshots.mjs), [`scripts/run-with-remote-paranext.sh`](scripts/run-with-remote-paranext.sh).
 
 ## Discord message limits
 
@@ -142,3 +161,4 @@ Summaries omit raw file diffs. Discord `content` is capped at **2000** character
 ## References
 
 - [shadcn CLI](https://ui.shadcn.com/docs/cli) (`add`, `--diff`)
+- [Registry](https://ui.shadcn.com/docs/registry)

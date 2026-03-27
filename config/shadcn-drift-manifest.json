@@ -1,5 +1,7 @@
 {
-  "shadcnCliVersion": "4.1.0",
+  "shadcnCliVersion": "4.1.1",
+  "trackUpstreamSnapshots": true,
+  "legacyLocalDiff": false,
   "excludeComponents": [],
   "editorRegistryComponents": [],
   "outdatedPackageAllowlist": [
