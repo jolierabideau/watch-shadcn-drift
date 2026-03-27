@@ -2,7 +2,7 @@
 # Ephemeral clone of paranext-core from GitHub, then run check-shadcn-drift.mjs.
 # No long-lived local clone required; the temp directory is removed on exit.
 #
-# Usage (from watch-shadcn-updates repo root):
+# Usage (from watch-shadcn-drift repo root):
 #   ./scripts/run-with-remote-paranext.sh              # default: main
 #   ./scripts/run-with-remote-paranext.sh release-prep # branch or tag
 #   PARANEXT_REF=abc1234 ./scripts/run-with-remote-paranext.sh  # short SHA (see note)
