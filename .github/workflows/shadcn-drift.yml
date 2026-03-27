@@ -31,7 +31,7 @@ jobs:
       PARANEXT_GITHUB_REPOSITORY: paranext/paranext-core
 
     steps:
-      - name: Checkout watch-shadcn-updates
+      - name: Checkout watch-shadcn-drift
         uses: actions/checkout@v4
 
       - name: Checkout paranext-core
