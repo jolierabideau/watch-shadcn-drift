@@ -67,12 +67,15 @@ jobs:
         working-directory: paranext-core
         run: npm ci
 
+      - name: npm test (watch-shadcn-drift)
+        run: npm ci && npm test
+
       - name: Run drift script
         id: drift
         run: node scripts/check-shadcn-drift.mjs --paranext-root paranext-core
 
       - name: Post to Discord
-        if: steps.drift.outputs.updates_needed == 'true'
+        if: steps.drift.outputs.discord_post == 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_SHADCN_WEBHOOK_URL }}
         run: |

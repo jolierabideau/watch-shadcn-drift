@@ -66,6 +66,14 @@ Comparing **live registry JSON** (stable-serialized) to **committed snapshots** 
 - **Alerts** when the live registry JSON hash differs from the baseline (with `drift-logs/upstream-*.diff` and optional import-line summaries).
 - **Optionally** runs legacy **`shadcn add --diff`** for diagnostics (`legacyLocalDiff` / `--include-local-diff`); when `trackUpstreamSnapshots` is true, that output does **not** alone set `updates_needed`.
 
+## 7. Hardening (tests, Discord policy, PBR contract, diff fallback)
+
+- **`discordNotifyOn`** in the manifest controls which buckets can trigger **Discord** (`discord_post` in Actions). **`updates_needed`** stays true for any finding so local runs and **`drift-summary.json`** stay complete.
+- **`pbrContract`** in **`registry-snapshots.json` (v2)** records **`style`** and **`registries`** from PBR `components.json`. If they drift without a snapshot refresh, the report calls out **contract vs index** before the per-component upstream list.
+- **Unified diff artifacts** use the system **`diff`** command when present, then the **`diff`** npm package, then a short line-oriented fallback so Windows/minimal images still get a non-empty **`drift-logs/upstream-*.diff`**.
+- **`editorRegistryComponents`** may use **`{ "spec", "snapshotKey" }`** for a stable filename when the default sanitization could collide.
+- Run **`npm test`** in **watch-shadcn-drift** for unit tests on registry helpers.
+
 ---
 
 *This document was written to capture team Q&A and design notes. Update it if the companion repo name, workflow behavior, or shadcn’s documented registry model changes.*

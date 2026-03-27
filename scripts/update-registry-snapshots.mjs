@@ -17,6 +17,8 @@ import {
   canonicalRegistryText,
   sha256Hex,
   snapshotKeyForSpec,
+  normalizeEditorRegistryEntry,
+  extractPbrContract,
 } from './lib/registry-snapshot.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -55,7 +57,10 @@ async function main() {
     shadcnCliVersion = '',
   } = manifest;
 
+  const editorEntries = (editorRegistryComponents ?? []).map(normalizeEditorRegistryEntry);
+
   const componentsJson = loadComponentsJson(paranextRoot);
+  const pbrContract = extractPbrContract(componentsJson);
   const shadcnUiDir = path.join(
     paranextRoot,
     'lib',
@@ -90,11 +95,12 @@ async function main() {
     console.log(`updated ${key} sha256=${entries[key].sha256.slice(0, 8)}…`);
   }
 
-  for (const spec of editorRegistryComponents) {
+  for (const entry of editorEntries) {
+    const { spec, snapshotKey: explicitKey } = entry;
     const url = resolveRegistryUrl(componentsJson, spec);
     const parsed = await fetchRegistryJson(url);
     const text = canonicalRegistryText(parsed);
-    const key = snapshotKeyForSpec(spec, 'editor');
+    const key = snapshotKeyForSpec(spec, 'editor', explicitKey);
     const filePath = path.join(SNAPSHOT_DIR, `${key}.json`);
     fs.writeFileSync(filePath, text, 'utf8');
     entries[key] = {
@@ -109,7 +115,8 @@ async function main() {
   }
 
   const index = {
-    version: 1,
+    version: 2,
+    pbrContract,
     entries,
   };
   fs.writeFileSync(INDEX_PATH, `${JSON.stringify(index, null, 2)}\n`, 'utf8');

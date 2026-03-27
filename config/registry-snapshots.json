@@ -1,12 +1,18 @@
 {
-  "version": 1,
+  "version": 2,
+  "pbrContract": {
+    "style": "default",
+    "registries": {
+      "@shadcn-editor": "https://shadcn-editor.vercel.app/r/{name}.json"
+    }
+  },
   "entries": {
     "default--alert": {
       "spec": "alert",
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/alert.json",
       "sha256": "5f1bc22fa74c1c2f09cd4a7c747620bedbf3968745abaa2f319fd5432fe51b1a",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--avatar": {
@@ -14,7 +20,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/avatar.json",
       "sha256": "a061c1b73f083a51efcace5f0bd16f6138c04b46f1551587bb1550bda45f5ac3",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--badge": {
@@ -22,7 +28,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/badge.json",
       "sha256": "bc42ed14410e316089af531839d7b23bd1768e943fc44e8449fa723c61edff55",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--button-group": {
@@ -30,7 +36,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/button-group.json",
       "sha256": "7fcf8d63e35afe485a8f70350a62fa7b56f78fdb040835f9ea45491d4e3d6531",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--button": {
@@ -38,7 +44,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/button.json",
       "sha256": "7249b3d6d07a954126d8768bfdfd4c1a7719f2bc75aa71ae0fb5e21c7707b5f3",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--card": {
@@ -46,7 +52,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/card.json",
       "sha256": "653425d055036799a6e0b470205fdee7c4c20765c785872404d3d4d1db8a7861",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--checkbox": {
@@ -54,7 +60,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/checkbox.json",
       "sha256": "4347e9dd91403860d6854d7f3879eca5a02fc60426abe968eea5fe7c63e2d38b",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--command": {
@@ -62,7 +68,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/command.json",
       "sha256": "d361b4324ec828d230759199fd93536ec8e2932d2848ea00814870e6b85af48b",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--context-menu": {
@@ -70,7 +76,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/context-menu.json",
       "sha256": "6447785ffcbc81aba109b7c93c98feb6e17d436a17bb76a7fc32d0b432ba6774",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--dialog": {
@@ -78,7 +84,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/dialog.json",
       "sha256": "6d441fd0f5f8eba295ee200e3621f3f0736b557939f953bc723555b89c871888",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--drawer": {
@@ -86,7 +92,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/drawer.json",
       "sha256": "7e64be9c2950a2ea9f4410217f3a1f4a581e0a73fe7a21edd42e523afe2eae58",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--dropdown-menu": {
@@ -94,7 +100,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/dropdown-menu.json",
       "sha256": "6abf5ea57201d0bbbe379520a1dbea5ce947f104d3511e754b0c0f371a3480a7",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--input": {
@@ -102,7 +108,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/input.json",
       "sha256": "f7264a58a66aae8c0f63f82d9466e80dad334b5fbcb2d3c23b6ff30a619ee8e9",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--label": {
@@ -110,7 +116,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/label.json",
       "sha256": "835c25157169a54fe0344cc0b9bee6de437747005cd1eb01b16e116e256f5fba",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--menubar": {
@@ -118,7 +124,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/menubar.json",
       "sha256": "90e56736e2624c25699fd646b94dab043e4d613b9c5df37368fd62b97485e5b7",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--popover": {
@@ -126,7 +132,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/popover.json",
       "sha256": "503e755a048a0e2722e199c0ec84350dcc2afb992ad7ad9b5c993e21056a4bcf",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--progress": {
@@ -134,7 +140,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/progress.json",
       "sha256": "d3f5717afd85fb69aaecbd49c7686384d2246293671e2407df6fc175999afb09",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--radio-group": {
@@ -142,7 +148,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/radio-group.json",
       "sha256": "cfe9645a58c8514c0100134446b68b387c5f1232dbc6093a55b1c1316a34d5f5",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--resizable": {
@@ -150,7 +156,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/resizable.json",
       "sha256": "0b9cb09aa6568bfa4d1069756ccb3e39673f03b65bfa392443e27ee75df303a3",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--select": {
@@ -158,7 +164,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/select.json",
       "sha256": "bb83d50068e94dd3d3f052e361f99aae5a9cb65c18d37e08d673bfabc4059c79",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--separator": {
@@ -166,7 +172,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/separator.json",
       "sha256": "6e174d67c1be3b6c78b3e77121fd2fef859481cbc20bcd3bb9566df914e0b200",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--sidebar": {
@@ -174,7 +180,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/sidebar.json",
       "sha256": "723c8c8062f20410fab51feffb5d09d1320dbef41d56bcaac27e708ec712a5fe",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--skeleton": {
@@ -182,7 +188,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/skeleton.json",
       "sha256": "aad5d9ce44a3306ebd48584f7875077b95c61e9f43111560bbd6a65287d82f96",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--slider": {
@@ -190,7 +196,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/slider.json",
       "sha256": "3507f1457cfa2c7da61e7885d45f7f2759d1e51ecf0b175a9f1d2a3303b32191",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--sonner": {
@@ -198,7 +204,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/sonner.json",
       "sha256": "adfd1ca301a6bbac53020d9b6184b9c7749baa763c28269bc5231c06cf5476e5",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--switch": {
@@ -206,7 +212,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/switch.json",
       "sha256": "a4d4eae8aa7d8fc5f7756a04dfc2eb1019cfe28a094db4a5e245494475e6fc97",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--table": {
@@ -214,7 +220,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/table.json",
       "sha256": "328f161ee90782f4e15ad425bea7ffa7dfc9d668fc34a99ddc6e30227f3dd779",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--tabs": {
@@ -222,7 +228,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/tabs.json",
       "sha256": "dd41dc6be500cc0fd5c0aecd18a2ba917510695f1700e1cf032215b135d97156",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--textarea": {
@@ -230,7 +236,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/textarea.json",
       "sha256": "ff13979bb3aa583125ebc166a9517470c26980c4574ed601b8d8babe1f382473",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--toggle-group": {
@@ -238,7 +244,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/toggle-group.json",
       "sha256": "2ef35ccf876f7f03590ddd9cfa6f522e34d6042f79503be5ec1b5c152df0f495",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--toggle": {
@@ -246,7 +252,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/toggle.json",
       "sha256": "f073611e3212557547adfdd8d3cce706d732331b545138c1a26a53deceb8ff4b",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     },
     "default--tooltip": {
@@ -254,7 +260,7 @@
       "kind": "default",
       "registryUrl": "https://ui.shadcn.com/r/styles/default/tooltip.json",
       "sha256": "16bdb97c2f696eda00df8ed10c14def46bc28b9e040a6324ffee5b8cc5697147",
-      "capturedAt": "2026-03-27T17:55:42.134Z",
+      "capturedAt": "2026-03-27T19:21:50.906Z",
       "cliVersion": "4.1.1"
     }
   }

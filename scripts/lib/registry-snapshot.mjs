@@ -5,6 +5,7 @@
 
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { createTwoFilesPatch } from 'diff';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -35,6 +36,42 @@ export function loadComponentsJson(paranextRoot) {
   const p = path.join(paranextRoot, 'lib', 'platform-bible-react', 'components.json');
   const raw = fs.readFileSync(p, 'utf8');
   return JSON.parse(raw);
+}
+
+/**
+ * Stable snapshot of style + registry URL templates for drift vs index.
+ * @param {Record<string, unknown>} componentsJson
+ */
+export function extractPbrContract(componentsJson) {
+  const style = typeof componentsJson.style === 'string' ? componentsJson.style : 'default';
+  const raw = componentsJson.registries ?? {};
+  const keys = Object.keys(raw).sort();
+  const registries = {};
+  for (const k of keys) {
+    if (typeof raw[k] === 'string') registries[k] = raw[k];
+  }
+  return { style, registries };
+}
+
+export function pbrContractsEqual(a, b) {
+  return stableStringify(a) === stableStringify(b);
+}
+
+/**
+ * @param {string | { spec: string, snapshotKey?: string }} raw
+ * @returns {{ spec: string, snapshotKey?: string }}
+ */
+export function normalizeEditorRegistryEntry(raw) {
+  if (typeof raw === 'string') {
+    return { spec: raw, snapshotKey: undefined };
+  }
+  if (raw && typeof raw === 'object' && typeof raw.spec === 'string') {
+    return {
+      spec: raw.spec,
+      snapshotKey: typeof raw.snapshotKey === 'string' ? raw.snapshotKey : undefined,
+    };
+  }
+  throw new Error(`Invalid editorRegistryComponents entry: ${JSON.stringify(raw)}`);
 }
 
 /**
@@ -76,16 +113,56 @@ export function canonicalRegistryText(parsed) {
   return `${stableStringify(parsed)}\n`;
 }
 
-/** Snapshot file key for filesystem (no slashes). */
-export function snapshotKeyForSpec(spec, kind) {
+/**
+ * @param {string} spec
+ * @param {'default'|'editor'} kind
+ * @param {string} [explicitEditorKey] - filesystem-safe id when kind==='editor'
+ */
+export function snapshotKeyForSpec(spec, kind, explicitEditorKey) {
   if (kind === 'default') {
     return `default--${spec}`;
+  }
+  if (explicitEditorKey) {
+    if (!/^[a-zA-Z0-9._-]+$/.test(explicitEditorKey)) {
+      throw new Error(
+        `snapshotKey must match /^[a-zA-Z0-9._-]+$/: got "${explicitEditorKey}"`,
+      );
+    }
+    return `editor--${explicitEditorKey}`;
   }
   return `editor--${spec.replace(/^@[^/]+\//, '').replace(/[^a-zA-Z0-9._-]+/g, '_')}`;
 }
 
-/** Unified diff via system `diff` (temp files). */
-export function unifiedDiffSync(labelOld, labelNew, textOld, textNew) {
+function relabelUnifiedDiffHeader(out, labelOld, labelNew) {
+  const lines = out.split('\n');
+  if (lines.length >= 2) {
+    lines[0] = `--- ${labelOld}`;
+    lines[1] = `+++ ${labelNew}`;
+  }
+  return lines.join('\n');
+}
+
+function lineOrientedFallback(labelOld, labelNew, textOld, textNew) {
+  const a = textOld.split('\n');
+  const b = textNew.split('\n');
+  const max = Math.max(a.length, b.length);
+  const parts = [`--- ${labelOld}`, `+++ ${labelNew}`, '(line count differs or binary diff failed; first 80 lines each)'];
+  parts.push('@@ snapshot @@');
+  for (let i = 0; i < Math.min(80, max); i++) {
+    const left = a[i] ?? '';
+    const right = b[i] ?? '';
+    if (left !== right) {
+      parts.push(`-${i + 1}: ${left}`);
+      parts.push(`+${i + 1}: ${right}`);
+    }
+  }
+  return `${parts.join('\n')}\n`;
+}
+
+/**
+ * Prefer system `diff -u`; fall back to `diff` npm `createTwoFilesPatch`; then line-oriented delta.
+ */
+export function unifiedDiffBestEffort(labelOld, labelNew, textOld, textNew) {
   const tmp = os.tmpdir();
   const a = path.join(tmp, `snap-a-${process.pid}-${Math.random().toString(36).slice(2)}`);
   const b = path.join(tmp, `snap-b-${process.pid}-${Math.random().toString(36).slice(2)}`);
@@ -94,16 +171,13 @@ export function unifiedDiffSync(labelOld, labelNew, textOld, textNew) {
     fs.writeFileSync(b, textNew, 'utf8');
     const r = spawnSync('diff', ['-u', a, b], { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
     const out = r.stdout || '';
-    if (!out.trim() && r.status === 0) return '';
-    if (!out.trim() && r.status !== 0) {
-      return `--- ${labelOld}\n+++ ${labelNew}\n(no diff output; exit ${r.status})\n`;
+    // diff returns 0 identical, 1 different, 2 error
+    if (r.status === 0 && !out.trim()) return '';
+    if ((r.status === 1 || r.status === 0) && out.trim()) {
+      return relabelUnifiedDiffHeader(out, labelOld, labelNew);
     }
-    const lines = out.split('\n');
-    if (lines.length >= 2) {
-      lines[0] = `--- ${labelOld}`;
-      lines[1] = `+++ ${labelNew}`;
-    }
-    return lines.join('\n');
+  } catch {
+    /* fall through */
   } finally {
     try {
       fs.unlinkSync(a);
@@ -116,4 +190,22 @@ export function unifiedDiffSync(labelOld, labelNew, textOld, textNew) {
       /* ignore */
     }
   }
+
+  try {
+    const patch = createTwoFilesPatch(labelOld, labelNew, textOld, textNew, '', '', {
+      context: 3,
+    });
+    if (patch && patch.trim()) {
+      return `fallback: system diff unavailable; JS unified patch (diff package)\n\n${patch}`;
+    }
+  } catch (e) {
+    return `fallback: JS unified patch failed (${e.message})\n\n${lineOrientedFallback(labelOld, labelNew, textOld, textNew)}`;
+  }
+
+  return `fallback: unified diff unavailable; line-oriented delta\n\n${lineOrientedFallback(labelOld, labelNew, textOld, textNew)}`;
+}
+
+/** @deprecated Use unifiedDiffBestEffort */
+export function unifiedDiffSync(labelOld, labelNew, textOld, textNew) {
+  return unifiedDiffBestEffort(labelOld, labelNew, textOld, textNew);
 }

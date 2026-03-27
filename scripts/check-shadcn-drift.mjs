@@ -17,12 +17,16 @@ import {
   canonicalRegistryText,
   sha256Hex,
   snapshotKeyForSpec,
-  unifiedDiffSync,
+  unifiedDiffBestEffort,
+  normalizeEditorRegistryEntry,
+  extractPbrContract,
+  pbrContractsEqual,
 } from './lib/registry-snapshot.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WATCH_ROOT = process.cwd();
 const MANIFEST_PATH = path.join(__dirname, '..', 'config', 'shadcn-drift-manifest.json');
+const INDEX_PATH = path.join(__dirname, '..', 'config', 'registry-snapshots.json');
 const SNAPSHOT_DIR = path.join(__dirname, '..', 'snapshots', 'registry');
 const DISCORD_CONTENT_MAX = 1900;
 
@@ -144,6 +148,33 @@ function appendGithubOutput(key, value) {
   fs.appendFileSync(p, `${key}=${value}\n`);
 }
 
+function loadSnapshotIndex() {
+  try {
+    if (!fs.existsSync(INDEX_PATH)) return null;
+    return JSON.parse(fs.readFileSync(INDEX_PATH, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function diffPbrContract(live, indexContract) {
+  const details = [];
+  if (live.style !== indexContract.style) {
+    details.push(`style: index "${indexContract.style}" vs live "${live.style}"`);
+  }
+  const idxReg = indexContract.registries ?? {};
+  const liveReg = live.registries ?? {};
+  const allNs = new Set([...Object.keys(idxReg), ...Object.keys(liveReg)]);
+  for (const ns of [...allNs].sort()) {
+    if (idxReg[ns] !== liveReg[ns]) {
+      details.push(
+        `registries["${ns}"]: index ${JSON.stringify(idxReg[ns] ?? '(missing)')} vs live ${JSON.stringify(liveReg[ns] ?? '(missing)')}`,
+      );
+    }
+  }
+  return details;
+}
+
 /** Sorted unique import lines from registry item `files[].content`. */
 function collectImportLines(registryJson) {
   const files = registryJson.files;
@@ -185,6 +216,11 @@ function buildDiscordMarkdown(ctx) {
     localComponentDrift,
     localEditorDrift,
     trackUpstreamSnapshots,
+    pbrContractDetails,
+    indexMissingPbrContract,
+    notifyUpstream,
+    notifyOutdated,
+    notifyCli,
   } = ctx;
 
   const lines = [];
@@ -198,7 +234,25 @@ function buildDiscordMarkdown(ctx) {
   }
   lines.push('');
 
-  if (missingBaseline.length) {
+  if (notifyUpstream && indexMissingPbrContract) {
+    lines.push('**0a · Snapshot index**');
+    lines.push(
+      '**Note:** `config/registry-snapshots.json` has no `pbrContract` block. Run `node scripts/update-registry-snapshots.mjs --paranext-root <path>` and commit.',
+    );
+    lines.push('');
+  }
+
+  if (notifyUpstream && pbrContractDetails?.length) {
+    lines.push('**0c · PBR `components.json` contract vs snapshot index**');
+    lines.push(
+      '**Note:** `style` or `registries` in platform-bible-react changed vs the committed index. Refresh snapshots after intentional config changes; many upstream hashes may change.',
+    );
+    lines.push('');
+    lines.push(pbrContractDetails.map((d) => `- ${d}`).join('\n'));
+    lines.push('');
+  }
+
+  if (notifyUpstream && missingBaseline.length) {
     lines.push('**0 · Missing registry baselines**');
     lines.push(
       '**Note:** Run `node scripts/update-registry-snapshots.mjs --paranext-root <path>` and commit `snapshots/registry/` + `config/registry-snapshots.json`.',
@@ -208,14 +262,14 @@ function buildDiscordMarkdown(ctx) {
     lines.push('');
   }
 
-  if (upstreamFetchErrors.length) {
+  if (notifyUpstream && upstreamFetchErrors.length) {
     lines.push('**0b · Registry fetch errors**');
     lines.push('');
     lines.push(upstreamFetchErrors.map((e) => `- ${e}`).join('\n'));
     lines.push('');
   }
 
-  if (upstreamChanged.length) {
+  if (notifyUpstream && upstreamChanged.length) {
     lines.push('**1 · Upstream registry (since last snapshot)**');
     lines.push(
       '**Note:** Registry JSON changed vs committed `snapshots/registry/*.json`. See `drift-logs/upstream-<key>.diff` and optional `drift-logs/upstream-<key>-imports.txt`.',
@@ -225,7 +279,7 @@ function buildDiscordMarkdown(ctx) {
     lines.push('');
   }
 
-  if (outdatedLines.length) {
+  if (notifyOutdated && outdatedLines.length) {
     lines.push('**2 · Allowlisted npm packages** (`npm outdated -w platform-bible-react`)');
     lines.push(
       '**Note:** Installed versions are behind what the lockfile/workspace allows; bump dependencies in paranext-core when ready.',
@@ -235,7 +289,7 @@ function buildDiscordMarkdown(ctx) {
     lines.push('');
   }
 
-  if (cliLine) {
+  if (notifyCli && cliLine) {
     lines.push('**3 · Shadcn CLI**');
     lines.push(`- ${cliLine}`);
     lines.push('');
@@ -291,6 +345,9 @@ function buildTerminalReport(ctx, useColor) {
     localEditorDrift,
     updatesNeeded,
     trackUpstreamSnapshots,
+    pbrContractDetails,
+    indexMissingPbrContract,
+    discordPost,
   } = ctx;
 
   const w = 58;
@@ -300,6 +357,7 @@ function buildTerminalReport(ctx, useColor) {
 
   out.push(c.cyan(bar));
   out.push(c.bold(`  Shadcn drift report  ${updatesNeeded ? c.yellow('(updates needed)') : c.green('(ok)')}`));
+  out.push(c.dim(`  Discord post: ${discordPost ? 'yes' : 'no'} (policy)`));
   out.push(c.cyan(bar));
   out.push('');
   out.push(c.bold('  Snapshot'));
@@ -313,6 +371,19 @@ function buildTerminalReport(ctx, useColor) {
     out.push(c.dim('  (no Actions run URL — not running in GitHub Actions)'));
   }
   out.push('');
+
+  if (indexMissingPbrContract) {
+    out.push(c.bold('  0a · Snapshot index'));
+    out.push(c.dim('  registry-snapshots.json missing pbrContract — run update-registry-snapshots.mjs'));
+    out.push('');
+  }
+
+  if (pbrContractDetails?.length) {
+    out.push(c.bold('  0c · PBR components.json contract vs index'));
+    out.push(c.dim(sub));
+    for (const d of pbrContractDetails) out.push(`    • ${d}`);
+    out.push('');
+  }
 
   if (missingBaseline.length) {
     out.push(c.bold('  0 · Missing registry baselines'));
@@ -387,9 +458,17 @@ async function main() {
     outdatedPackageAllowlist = [],
     trackUpstreamSnapshots = true,
     legacyLocalDiff = false,
+    discordNotifyOn = {},
   } = manifest;
 
-  const runLocalDiff = includeLocalDiff || legacyLocalDiff;
+  const notifyUpstream = discordNotifyOn.upstreamRegistry !== false;
+  const notifyOutdated = discordNotifyOn.allowlistedOutdated !== false;
+  const notifyCli = discordNotifyOn.newerCli !== false;
+
+  const editorEntries = (editorRegistryComponents ?? []).map(normalizeEditorRegistryEntry);
+
+  const runLocalDiff =
+    includeLocalDiff || legacyLocalDiff || !trackUpstreamSnapshots;
 
   const shadcnCwd = path.join(paranextRoot, 'lib', 'platform-bible-react');
   const shadcnUiDir = path.join(shadcnCwd, 'src', 'components', 'shadcn-ui');
@@ -404,7 +483,11 @@ async function main() {
   const missingBaseline = [];
   const upstreamFetchErrors = [];
 
+  let pbrContractDetails = [];
+  let indexMissingPbrContract = false;
+
   if (trackUpstreamSnapshots) {
+    const snapshotIndex = loadSnapshotIndex();
     let componentsJson;
     try {
       componentsJson = loadComponentsJson(paranextRoot);
@@ -413,6 +496,13 @@ async function main() {
     }
 
     if (componentsJson) {
+      const liveContract = extractPbrContract(componentsJson);
+      if (!snapshotIndex?.pbrContract) {
+        indexMissingPbrContract = true;
+      } else if (!pbrContractsEqual(liveContract, snapshotIndex.pbrContract)) {
+        pbrContractDetails = diffPbrContract(liveContract, snapshotIndex.pbrContract);
+      }
+
       for (const name of defaultNames) {
         const key = snapshotKeyForSpec(name, 'default');
         const snapPath = path.join(SNAPSHOT_DIR, `${key}.json`);
@@ -449,7 +539,7 @@ async function main() {
         } catch {
           oldParsed = {};
         }
-        const diffText = unifiedDiffSync(
+        const diffText = unifiedDiffBestEffort(
           `snapshots/registry/${key}.json`,
           `live (${url})`,
           baselineText,
@@ -462,8 +552,9 @@ async function main() {
         }
       }
 
-      for (const spec of editorRegistryComponents) {
-        const key = snapshotKeyForSpec(spec, 'editor');
+      for (const entry of editorEntries) {
+        const { spec, snapshotKey: explicitKey } = entry;
+        const key = snapshotKeyForSpec(spec, 'editor', explicitKey);
         const snapPath = path.join(SNAPSHOT_DIR, `${key}.json`);
         let url;
         try {
@@ -496,7 +587,7 @@ async function main() {
         } catch {
           oldParsed = {};
         }
-        const diffText = unifiedDiffSync(
+        const diffText = unifiedDiffBestEffort(
           `snapshots/registry/${key}.json`,
           `live (${url})`,
           baselineText,
@@ -520,7 +611,8 @@ async function main() {
       fs.writeFileSync(path.join(logsDir, `default-${name}.log`), log, 'utf8');
       if (drift) localComponentDrift.push(name);
     }
-    for (const spec of editorRegistryComponents) {
+    for (const entry of editorEntries) {
+      const { spec } = entry;
       const safe = spec.replace(/[^a-zA-Z0-9@/-]/g, '_');
       const { drift, log } = runShadcnDiff(shadcnCwd, shadcnCliVersion, spec);
       fs.writeFileSync(path.join(logsDir, `editor-${safe}.log`), log, 'utf8');
@@ -539,7 +631,8 @@ async function main() {
     trackUpstreamSnapshots &&
     (upstreamChanged.length > 0 ||
       missingBaseline.length > 0 ||
-      upstreamFetchErrors.length > 0);
+      upstreamFetchErrors.length > 0 ||
+      pbrContractDetails.length > 0);
 
   const localGate =
     !trackUpstreamSnapshots &&
@@ -549,7 +642,13 @@ async function main() {
     upstreamGate ||
     localGate ||
     outdatedLines.length > 0 ||
-    cliLine !== null;
+    cliLine !== null ||
+    indexMissingPbrContract;
+
+  const discordPost =
+    (notifyUpstream && upstreamGate) ||
+    (notifyOutdated && outdatedLines.length > 0) ||
+    (notifyCli && cliLine !== null);
 
   const sha = getParanextSha(paranextRoot);
   const ref = process.env.PARANEXT_REF || process.env.GITHUB_REF_NAME || 'main';
@@ -578,6 +677,12 @@ async function main() {
     localEditorDrift,
     updatesNeeded,
     trackUpstreamSnapshots,
+    pbrContractDetails,
+    indexMissingPbrContract,
+    notifyUpstream,
+    notifyOutdated,
+    notifyCli,
+    discordPost,
   };
 
   const body = buildDiscordMarkdown(reportCtx);
@@ -595,11 +700,19 @@ async function main() {
     `${JSON.stringify(
       {
         updatesNeeded,
+        discordPost,
+        discordNotifyOn: {
+          upstreamRegistry: notifyUpstream,
+          allowlistedOutdated: notifyOutdated,
+          newerCli: notifyCli,
+        },
         trackUpstreamSnapshots,
         upstreamChanged,
         upstreamHashUnchanged,
         missingBaseline,
         upstreamFetchErrors,
+        pbrContractDetails,
+        indexMissingPbrContract,
         outdatedLines,
         cliLine,
         legacyLocalDiffRun: runLocalDiff,
@@ -615,6 +728,7 @@ async function main() {
   );
 
   appendGithubOutput('updates_needed', updatesNeeded ? 'true' : 'false');
+  appendGithubOutput('discord_post', discordPost ? 'true' : 'false');
 
   const useColor = !plain && process.stdout.isTTY;
   console.log(updatesNeeded ? 'updates_needed=true' : 'updates_needed=false');

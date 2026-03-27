@@ -8,7 +8,9 @@ Scheduled GitHub Actions workflow that checks **[paranext/paranext-core](https:/
 
 **Optional (legacy):** `shadcn add <name> --diff` against vendored files — enable with `legacyLocalDiff: true` in the manifest or **`--include-local-diff`** on the check script. **Does not** set `updates_needed` when `trackUpstreamSnapshots` is true (informational only); it is the primary drift signal only when **`trackUpstreamSnapshots`** is **false**.
 
-If **nothing** needs attention, **no Discord message** is sent. If any bucket is non-empty, **one** message is posted to a Discord incoming webhook with a short summary and links to the Actions run and the checked-out commit.
+**`updates_needed`** is true if **any** check found something (upstream, npm outdated, CLI, or missing `pbrContract` metadata in the index). **`discord_post`** (GitHub Actions output) is true only when **at least one enabled bucket** in **`discordNotifyOn`** has content — so you can silence noisy buckets (for example allowlisted npm) without losing the full report in **`drift-summary.json`** and the terminal.
+
+If **`discord_post`** is false, **no Discord message** is sent. When it is true, **one** message is posted to the incoming webhook with a short summary and links to the Actions run and the checked-out commit.
 
 ---
 
@@ -23,6 +25,8 @@ If **nothing** needs attention, **no Discord message** is sent. If any bucket is
   ```
 
   Commit `snapshots/registry/*.json` and `config/registry-snapshots.json` in **this** repo (e.g. a PR in `watch-shadcn-drift` after you merge or plan upstream changes).
+
+- **PBR contract:** The index (`version` **2**) includes **`pbrContract`**: `style` and sorted **`registries`** URL templates from `platform-bible-react/components.json`. If someone changes style or registry URLs without refreshing snapshots, the check reports **PBR components.json contract vs snapshot index** so large upstream diffs are easier to interpret.
 
 - **Missing baseline:** If a tracked component has no snapshot file, the check lists it under **Missing registry baselines** and sets `updates_needed` until you run the update script.
 
@@ -50,9 +54,10 @@ Workflow file: [`.github/workflows/shadcn-drift.yml`](.github/workflows/shadcn-d
 2. Checkout **paranext/paranext-core** into `paranext-core/` (shallow, ref below).
 3. Read **Node** from `paranext-core/package.json` **`volta.node`** and run **`actions/setup-node`** with **npm cache** on `paranext-core/package-lock.json`.
 4. **`npm ci`** in **`paranext-core/`** (monorepo root, same idea as upstream [`.github/workflows/test.yml`](https://github.com/paranext/paranext-core/blob/main/.github/workflows/test.yml)).
-5. **`node scripts/check-shadcn-drift.mjs --paranext-root paranext-core`** — writes `GITHUB_OUTPUT` `updates_needed`, `drift-summary.json`, `discord-payload.json`, and `drift-logs/`.
-6. **Discord:** `POST` `discord-payload.json` **only if** `updates_needed == true` **and** the run is **not** a `workflow_dispatch` with **`dry_run: true`**. If `updates_needed` is false, the Discord step is **skipped** (no API call).
-7. **Artifacts:** uploads `drift-logs/`, `drift-summary.json`, and `discord-payload.json` when the drift step ran (even on failure of later steps, if logs exist).
+5. **`npm ci` + `npm test`** at the **watch-shadcn-drift** repo root (unit tests for registry helpers).
+6. **`node scripts/check-shadcn-drift.mjs --paranext-root paranext-core`** — writes `GITHUB_OUTPUT` **`updates_needed`** and **`discord_post`**, `drift-summary.json`, `discord-payload.json`, and `drift-logs/`.
+7. **Discord:** `POST` `discord-payload.json` **only if** **`discord_post == true`** **and** the run is **not** a `workflow_dispatch` with **`dry_run: true`**. If `discord_post` is false, the Discord step is **skipped** (no API call), even when `updates_needed` is true (e.g. only npm outdated with **`allowlistedOutdated: false`** in **`discordNotifyOn`**).
+8. **Artifacts:** uploads `drift-logs/`, `drift-summary.json`, and `discord-payload.json` when the drift step ran (even on failure of later steps, if logs exist).
 
 **Triggers**
 
@@ -125,7 +130,7 @@ This still **clones on disk briefly**; it does not stream-only from the API. **`
 | Output | Description |
 |--------|-------------|
 | **Stdout** | First line: `updates_needed=true` or `false`. When true, a **formatted report** (terminal): upstream snapshot changes, missing baselines, fetch errors, allowlisted **npm outdated**, **newer shadcn CLI** vs manifest pin, and optional legacy **local `--diff`** listing. |
-| **`drift-summary.json`** | JSON breakdown (`upstreamChanged`, `missingBaseline`, `upstreamFetchErrors`, packages, CLI, optional local diff). In `.gitignore`. |
+| **`drift-summary.json`** | JSON breakdown (`discordPost`, `pbrContractDetails`, `upstreamChanged`, `missingBaseline`, `upstreamFetchErrors`, packages, CLI, optional local diff). In `.gitignore`. |
 | **`drift-logs/`** | `upstream-*.diff`, `upstream-*-imports.txt`, and optional `default-*.log` / `editor-*.log` for legacy `--diff`. In `.gitignore`. |
 | **`discord-payload.json`** | JSON for Discord `content` (markdown with the same sections + short **Note** lines). In `.gitignore`. |
 
@@ -133,12 +138,12 @@ This still **clones on disk briefly**; it does not stream-only from the API. **`
 
 | | Local | CI |
 |---|--------|-----|
-| **`GITHUB_OUTPUT`** | Not set; ignore step outputs. | Set; drives Discord `if:` and the UI. |
-| **Discord** | Not sent by the script. | Sent when `updates_needed` and not `dry_run`. |
+| **`GITHUB_OUTPUT`** | Not set; ignore step outputs. | Set; `updates_needed` and `discord_post` drive reporting vs Discord. |
+| **Discord** | Not sent by the script. | Sent when `discord_post` and not `dry_run`. |
 
 ### Optional: send the same payload to Discord from your machine
 
-After a local run where `updates_needed` is true:
+After a local run where `discord_post` would be true in CI (see `drift-summary.json`):
 
 ```bash
 curl -X POST -H "Content-Type: application/json" -d @discord-payload.json "$DISCORD_SHADCN_WEBHOOK_URL"
@@ -148,11 +153,23 @@ Prefer a test webhook/channel when experimenting.
 
 ---
 
+## Unit tests
+
+From this repo root (after **`npm ci`**):
+
+```bash
+npm test
+```
+
+Tests live under [`test/`](test/) and cover [`scripts/lib/registry-snapshot.mjs`](scripts/lib/registry-snapshot.mjs) (`stableStringify`, URL resolution, golden hashes, editor keys).
+
 ## Configuration
 
-- **Manifest:** [`config/shadcn-drift-manifest.json`](config/shadcn-drift-manifest.json) — `shadcnCliVersion`, **`trackUpstreamSnapshots`** (default `true`), **`legacyLocalDiff`** (default `false`), `excludeComponents`, `editorRegistryComponents` (`@shadcn-editor/...` names), and `outdatedPackageAllowlist`.
-- **Snapshot index:** [`config/registry-snapshots.json`](config/registry-snapshots.json) — per-key `sha256`, `registryUrl`, `capturedAt`, etc. (generated by `update-registry-snapshots.mjs`).
+- **Manifest:** [`config/shadcn-drift-manifest.json`](config/shadcn-drift-manifest.json) — `shadcnCliVersion`, **`trackUpstreamSnapshots`**, **`legacyLocalDiff`**, **`discordNotifyOn`** (`upstreamRegistry`, `allowlistedOutdated`, `newerCli` — each defaults to **true** if omitted), `excludeComponents`, **`editorRegistryComponents`** (string or `{ "spec", "snapshotKey" }` for stable filenames), and `outdatedPackageAllowlist`.
+- **Snapshot index:** [`config/registry-snapshots.json`](config/registry-snapshots.json) — **`pbrContract`** (v2), per-entry `sha256`, `registryUrl`, `capturedAt`, etc. (generated by `update-registry-snapshots.mjs`).
 - **Scripts:** [`scripts/check-shadcn-drift.mjs`](scripts/check-shadcn-drift.mjs), [`scripts/update-registry-snapshots.mjs`](scripts/update-registry-snapshots.mjs), [`scripts/run-with-remote-paranext.sh`](scripts/run-with-remote-paranext.sh).
+
+**Optional:** To route allowlisted npm noise away from the main channel, you can rely on **`discordNotifyOn.allowlistedOutdated: false`** (no Discord for that bucket while still seeing rows in `drift-summary.json`). A second webhook URL is not wired by default; add a separate workflow step if your team needs a dedicated npm-only channel.
 
 ## Discord message limits
 
