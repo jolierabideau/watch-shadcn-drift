@@ -1,8 +1,6 @@
 name: Shadcn drift check
 
 on:
-  schedule:
-    - cron: '0 9 * * 1' # Mondays 09:00 UTC
   workflow_dispatch:
     inputs:
       ref:
