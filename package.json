@@ -1,0 +1,11 @@
+{
+  "name": "watch-shadcn-drift",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/registry-snapshot.test.mjs"
+  },
+  "dependencies": {
+    "diff": "^7.0.0"
+  }
+}

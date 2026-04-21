@@ -1,5 +1,12 @@
 {
-  "shadcnCliVersion": "4.1.0",
+  "shadcnCliVersion": "4.1.1",
+  "trackUpstreamSnapshots": true,
+  "legacyLocalDiff": false,
+  "discordNotifyOn": {
+    "upstreamRegistry": true,
+    "allowlistedOutdated": true,
+    "newerCli": true
+  },
   "excludeComponents": [],
   "editorRegistryComponents": [],
   "outdatedPackageAllowlist": [
